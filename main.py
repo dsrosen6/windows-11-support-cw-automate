@@ -9,10 +9,11 @@ load_dotenv()
 client_id = os.getenv("CONNECTWISE_CLIENT_ID")
 api_token = os.getenv("CONNECTWISE_ACCESS_TOKEN")
 
-def add_device(devices, name, client, location, processor, compatible):
+def add_device(devices, name, client, last_user, location, processor, compatible):
     device = {
         "Name": name,
         "Client": client,
+        "Last User": last_user,
         "Location": location,
         "Processor": processor,
         "Compatible": compatible
@@ -58,7 +59,7 @@ def get_computers(page_size=200):
     while True:
         try:
             print(f"Getting page {page_number} of computers...")
-            url = f"https://snrmm.securenetworkers.com/cwa/api/v1/computers?includefields=computername,client,location&orderby=id asc&pagesize={page_size}&page={page_number}"
+            url = f"https://snrmm.securenetworkers.com/cwa/api/v1/computers?includefields=computername,client,location,lastusername&orderby=id asc&pagesize={page_size}&page={page_number}"
             payload = {}
             headers = {
                 "Content-Type": "application/json",
@@ -133,13 +134,18 @@ def get_computers_and_processors(failed_retry_list):
                 compatible = None
                 if processor is not None:
                     compatible = is_compatible_cpu(processor, compatible_cpus)
-                add_device(devices, computer["ComputerName"], computer["Client"]["Name"], computer["Location"]["Name"], processor, compatible)
+                add_device(devices, computer["ComputerName"], computer["Client"]["Name"], get_last_user_name(computer), computer["Location"]["Name"], processor, compatible)
             except Exception as e:
                 print(f"ID: {computer['Id']} Name: {computer["ComputerName"]} - Error getting processor: {e}")
-                add_device(devices, computer["ComputerName"], computer["Client"]["Name"], computer["Location"]["Name"], None, None)
+                add_device(devices, computer["ComputerName"], computer["Client"]["Name"], get_last_user_name(computer), computer["Location"]["Name"], None, None)
 
     return devices
-    
+
+def get_last_user_name(computer):
+    if "LastUserName" in computer:
+        return computer["LastUserName"]
+    return "N/A"
+
 def write_devices_to_csv(devices):
     try:
         with open('windows_11_compatibility.csv', mode='w', newline='') as file:
